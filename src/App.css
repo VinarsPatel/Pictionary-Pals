@@ -1,0 +1,15 @@
+/* write your css here */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+.inputStyle {
+   @apply rounded-md px-2 border-black border-2 text-[16px] leading-[24px]  shadow-[0_1px_0_0] shadow-white/50 placeholder:text-richblack-400 focus:outline-none;
+ }
+ .labelStyle {
+   @apply text-[14px] text-richblack-5;
+ } 
+
+ .w-color-compact {
+   background-color: #323232 !important
+}
