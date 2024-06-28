@@ -1,10 +1,10 @@
 const WebSocket = require("ws")
 const express = require("express")
 const app = express()
-const path = require("path")
 const cors = require("cors")
 const http = require("http")
 const crypto = require("crypto")
+require("dotenv").config()
 const wordsArray = [
   "apple",
   "banana",
@@ -33,9 +33,9 @@ const wordsArray = [
   "zebra",
 ]
 
-function getWord(){
-   const randomIndex = Math.floor(Math.random() * wordsArray.length);
-  return wordsArray[randomIndex];
+function getWord() {
+  const randomIndex = Math.floor(Math.random() * wordsArray.length)
+  return wordsArray[randomIndex]
 }
 
 app.use(express.json())
@@ -50,7 +50,7 @@ app.get("/", (req, res) => {
 })
 
 var webSockets = {}
-// app.use("/", express.static(path.resolve(__dirname, "../src")))
+
 app.get("/getRoom", (req, res) => {
   try {
     const roomId = crypto.randomBytes(10).toString("hex")
@@ -68,43 +68,19 @@ app.get("/getRoom", (req, res) => {
   }
 })
 
-const port = 9833
 const server = http.createServer(express)
 const wsServer = new WebSocket.Server({ server }) // a websocket server
 
 server.on("request", app)
 
-// const wss = new WebSocket.Server({ server })
-
 wsServer.on("connection", function (ws, req) {
-  // what should a websocket do on connection
-  //extract roomID, and store client to that roomID
-
-  /*
-   websockets = {
-      roomID1:{
-         idPointer: ,
-         turnID: ,
-         date:,
-         ans: ,
-         users:[
-            ws1,
-            ws2,
-         ],
-      
-      },
-      roomID2:{...}
-   }
-*/
-
   var roomID = req.url.substring(1)
-  console.log(roomID)
 
   const messageSender = (messageObj) => {
     const users = webSockets[roomID].users
     Object.keys(users).forEach(function each(userID) {
       if (users[userID] != ws) {
-        if (users[userID].readyState === WebSocket.OPEN)
+        if (users[userID]?.readyState === WebSocket.OPEN)
           users[userID].send(JSON.stringify(messageObj))
         else {
           var name = webSockets[roomID].names[userID]
@@ -116,6 +92,8 @@ wsServer.on("connection", function (ws, req) {
             type: 7,
             name,
             id: userID,
+            names: webSockets[roomID].names,
+            scores: webSockets[roomID].scores,
           })
         }
       }
@@ -124,9 +102,11 @@ wsServer.on("connection", function (ws, req) {
 
   const removeClosedConnection = () => {
     const users = webSockets[roomID]?.users
-    if (users!=null) {
+    let f = 0
+    if (users != null) {
       Object.keys(users).forEach(function each(userID) {
         if (users[userID]?.readyState !== WebSocket.OPEN) {
+          f++
           var name = webSockets[roomID].names[userID]
           delete webSockets[roomID].users[userID]
           delete webSockets[roomID].names[userID]
@@ -136,6 +116,8 @@ wsServer.on("connection", function (ws, req) {
             type: 7,
             name,
             id: userID,
+            names: webSockets[roomID].names,
+            scores: webSockets[roomID].scores,
           })
         }
       })
@@ -147,7 +129,7 @@ wsServer.on("connection", function (ws, req) {
     if (ind == keys.length) {
       ind = 0
     }
-    webSockets[roomID].turnID = ind
+    webSockets[roomID].turnID = parseInt(keys[ind + 1])
     webSockets[roomID].ans = getWord()
     ws.send(
       JSON.stringify({
@@ -163,14 +145,14 @@ wsServer.on("connection", function (ws, req) {
   }
   ws.on("message", (message) => {
     // Echo the message back to the client
-    //  ws.send(`Server received: ${message}`)
-    console.log(roomID)
     const msg = JSON.parse(message)
-    console.log("received: ", msg)
     removeClosedConnection()
     switch (msg.type) {
       case 0:
-        if (!webSockets[roomID]) {
+        if (
+          !webSockets[roomID] ||
+          Object.keys(webSockets[roomID].users).length == 0
+        ) {
           webSockets[roomID] = {
             idPointer: 2,
             count: 1,
@@ -183,7 +165,7 @@ wsServer.on("connection", function (ws, req) {
             JSON.stringify({
               type: 0,
               id: 1,
-              turnID: webSockets[roomID].turnID,   
+              turnID: webSockets[roomID].turnID,
               names: webSockets[roomID].names,
               scores: webSockets[roomID].scores,
             })
@@ -195,11 +177,10 @@ wsServer.on("connection", function (ws, req) {
           webSockets[roomID].users[ind] = ws
           webSockets[roomID].names[ind] = msg.name
           webSockets[roomID].scores[ind] = 0
-          console.log("here")
           if (webSockets[roomID].count == 2) {
-            webSockets[roomID].turnID = Object.keys(
-              webSockets[roomID].users
-            )[0]
+            webSockets[roomID].turnID = parseInt(
+              Object.keys(webSockets[roomID].users)[0]
+            )
             webSockets[roomID].ans = getWord()
             messageSender({
               type: 4,
@@ -207,6 +188,7 @@ wsServer.on("connection", function (ws, req) {
               word: webSockets[roomID].ans,
             })
           }
+
           ws.send(
             JSON.stringify({
               type: 0,
@@ -220,131 +202,42 @@ wsServer.on("connection", function (ws, req) {
             type: 6,
             name: msg.name,
             id: ind,
+            names: webSockets[roomID].names,
+            scores: webSockets[roomID].scores,
           })
         }
-        console.log(webSockets[roomID].count)
-        console.log(webSockets[roomID].names)
         break
 
       case 1:
-        messageSender(message)
+        messageSender(msg)
         break
 
       case 2:
-        messageSender(message)
+        messageSender(msg)
         break
 
       case 3:
+        if (msg.id === webSockets[roomID].turnID) break
         if (msg.message == webSockets[roomID].ans) {
           msg.isTrue = true
-          webSockets[roomID].scores[msg.id] += 50;
-          webSockets[roomID].scores[turnID] += 25;
-          msg.scores = webSockets[roomID].scores;
+          webSockets[roomID].scores[msg.id] += 50
+          webSockets[roomID].scores[webSockets[roomID].turnID] += 25
+          msg.scores = webSockets[roomID].scores
         } else {
           msg.isTrue = false
         }
         messageSender(msg)
         ws.send(JSON.stringify(msg))
-        setTimeout(changeTurn, 1000)
+        if (msg.isTrue) setTimeout(changeTurn, 1000)
+        break
+
+      case 5:
+        messageSender(msg)
         break
     }
   })
-
-  //   ws.on("message", (message)=> {
-  //    // what to do on message event
-  //    //  console.log('received from ' + userID + ': ' + message)
-
-  //    const messageObj = JSON.parse(message)
-  //    console.log("message", messageObj)
-  //    const id = messageObj.name
-  //    console.log(messageObj)
-  //    //ID assigning
-  //    if (messageObj.type === 0) {
-  //      console.log(webSockets[messageObj.ser])
-  //      if (webSockets[messageObj.ser].turnID === null) {
-  //        webSockets[messageObj.ser].turnID = id
-  //      }
-  //      webSockets[messageObj.ser].users[id] = ws
-  //      console.log(
-  //        "Added" +
-  //          id +
-  //          "to" +
-  //          messageObj.ser +
-  //          "lr" +
-  //          Object.getOwnPropertyNames(webSockets[messageObj.ser].users).length
-  //      )
-  //      if (ws.readyState === WebSocket.OPEN) {
-  //        const msg = {
-  //          type: 0,
-  //          id,
-  //          canvas: id === webSockets[messageObj.ser].turnID,
-  //          turnID: webSockets[messageObj.ser].turnID,
-  //        }
-  //        if (msg.canvas) {
-  //          msg.word = chooseRandomWord()
-  //          webSockets[messageObj.ser].ans = msg.word
-  //        }
-  //        ws.send(JSON.stringify(msg))
-  //      }
-  //    }
-
-  //    // draw
-  //    else if (messageObj.type === 1) {
-  //      if (messageObj.id === webSockets[messageObj.ser].turnID) {
-  //        messageSender(messageObj, ws)
-  //      }
-  //    }
-  //    //check answer
-  //    else if (messageObj.type === 2) {
-  //      const { text } = messageObj
-  //      messageObj.isTrue = text === webSockets[messageObj.ser].ans
-  //      messageSender(messageObj)
-  //      console.log(typeof text, typeof webSockets[messageObj.ser].ans)
-  //      //change player
-  //      if (messageObj.isTrue) {
-  //        const keys = Object.keys(webSockets[messageObj.ser].users)
-  //        let currInd = keys.indexOf(webSockets[messageObj.ser].turnID)
-  //        nextInd = currInd + 1 >= keys.length ? 0 : currInd + 1
-  //        let x = nextInd
-  //        do {
-  //          if (
-  //            webSockets[messageObj.ser].users[keys.at(x)].readyState !==
-  //            WebSocket.OPEN
-  //          ) {
-  //            delete webSockets[messageObj.ser].users[keys.at(x)]
-  //            x++
-  //          }
-  //        } while (x != nextInd)
-
-  //        webSockets[messageObj.ser].turnID = keys.at(x)
-
-  //        const users = webSockets[messageObj.ser].users
-  //        const turnID = webSockets[messageObj.ser].turnID
-  //        console.log(turnID)
-  //        Object.keys(users).forEach(function each(userID) {
-  //          if (users[userID]?.readyState === WebSocket.OPEN) {
-  //            const msg = JSON.stringify({
-  //              type: 4,
-  //              turnID,
-  //              canvas: userID === turnID,
-  //            })
-  //            if (msg.canvas) {
-  //              msg.word = chooseRandomWord()
-  //              webSockets[messageObj.ser].ans = msg.word
-  //            }
-  //            users[userID].send(msg)
-  //          }
-  //        })
-  //      }
-  //    }
-
-  //    //chat
-  //    else {
-  //      messageSender(messageObj)
-  //    }
-  //  })
 })
 
-server.listen(port, () => {
-  console.log("http server started")
+server.listen(process.env.PORT, () => {
+  //   console.log("http server started")
 })

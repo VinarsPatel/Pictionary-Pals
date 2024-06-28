@@ -1,252 +1,388 @@
-import React, { useState, useEffect, useRef } from "react"
+import React, { useEffect, useRef, useReducer } from "react"
 import Compact from "@uiw/react-color-compact"
 import { useParams } from "react-router-dom"
 import toast from "react-hot-toast"
+import Scores from "./Scores"
 const colorObj = {
-  G: ["#00FF00", "#008000"],
-  O: ["#FFA500", "#FF5F1F"],
-  R: ["#FF0000", "#800000"],
-  S: ["#0000FF", "#000080"],
-  B: ["#C0C0C0", "#808080"],
+  G: ["#00f000", "#00800"],
+  O: ["#ffa500", "#ff5f1f"],
+  R: ["#ff0000", "#800000"],
+  S: ["#00c8ff", "#0082ff"],
+  B: ["#b0b0b0", "#a0a0a0"],
 }
+
+const initialState = {
+  message: "",
+  word: "",
+  color: "#000000",
+  eraseMode: false,
+  strokeWidth: 2,
+  eraserWidth: 10,
+  isDrawing: false,
+  id: null,
+  turnID: null,
+  names: null,
+  scores: null,
+  msgArr: [],
+}
+
+function reducer(state, action) {
+  switch (action.type) {
+    case "reset":
+      return action.payload
+    case "setAll":
+      return {
+        ...state,
+        id: action.id,
+        turnID: action.turnID,
+        names: action.names,
+        scores: action.scores,
+        word: action?.word,
+      }
+    case "setMessage":
+      return { ...state, message: action.payload }
+    case "setColor":
+      return { ...state, color: action.payload }
+    case "setEraseMode":
+      return { ...state, eraseMode: action.payload }
+    case "setStrokeWidth":
+      return { ...state, strokeWidth: action.payload }
+    case "setEraserWidth":
+      return { ...state, eraserWidth: action.payload }
+    case "setIsDrawing":
+      return { ...state, isDrawing: action.payload }
+    case "setCanvasVar":
+      return { ...state, strokeWidth: action.strokeWidth, color: action.color }
+    case "setId":
+      return { ...state, id: action.payload }
+    case "addMsg":
+      return { ...state, msgArr: [...state.msgArr, action.msg] }
+    case "correctGuess":
+      return {
+        ...state,
+        scores: action.scores,
+        msgArr: [...state.msgArr, action.msg],
+      }
+    case "changeTurn":
+      return {
+        ...state,
+        turnID: action.turnID,
+        word: action?.word,
+        msgArr: [...state.msgArr, action.msg],
+      }
+    case "deltaPlayer":
+      return {
+        ...state,
+        names: action.names,
+        scores: action.scores,
+        msgArr: [...state.msgArr, action.msg],
+      }
+    default:
+      throw new Error()
+  }
+}
+
 const GameArena = () => {
-  const [name, setName] = useState("")
-  const [message, setMessage] = useState("")
-  const [msgArr, setMsgArr] = useState([])
-  const [word, setWord] = useState("")
-  const [turnID, setTurnID] = useState(null)
-  const [id, setId] = useState(null)
-  const [names, setNames] = useState(null)
-  const [scores, setScores] = useState(null)
+  const [state, dispatch] = useReducer(reducer, initialState)
   const canvasRef = useRef(null)
   const p = useParams()
-  const [ctx, setCtx] = useState(null)
-  const [color, setColor] = useState("000000")
+  const ctx = useRef(null)
   const rect = useRef(null)
-  const [eraseMode, setEraseMode] = useState(false)
-  const [strokeWidth, setStrokeWidth] = useState(5)
-  const [eraserWidth, setEraserWidth] = useState(10)
-  const [lastX, setLastX] = useState(0)
-  const [lastY, setLastY] = useState(0)
-  const [isDrawing, setIsDrawing] = useState(false)
-  const [ws, setWs] = useState(null)
+
+  let lastX
+  let lastY
+
+  const ws = useRef(null)
   const url = "ws://localhost:9833"
 
+  const setVar = (msg) => {
+    lastX = msg.x
+    lastY = msg.y
+    ctx.current.lineWidth = msg.strokeWidth
+    ctx.current.strokeStyle = msg.color
+  }
+  const wsMessageHandler = (msg) => {
+    switch (msg.type) {
+      case 0:
+        let opt = {
+          type: "setAll",
+          id: msg.id,
+          turnID: msg.turnID,
+          names: msg.names,
+          scores: msg.scores,
+        }
+        if (msg.turnID === msg.id) {
+          opt["word"] = msg.word
+          ctx.current.clearRect(0, 0, 700, 500)
+          ws.current.send(JSON.stringify({ type: 5 }))
+        }
+        dispatch(opt)
+        break
+      case 1:
+        dispatch({
+          type: "setCanvasVar",
+          strokeWidth: msg.strokeWidth,
+          color: msg.color,
+        })
+        setVar(msg)
+        break
+      case 2:
+        drawToo(msg.x, msg.y)
+        break
+      case 3:
+        if (msg.isTrue) {
+          dispatch({
+            type: "correctGuess",
+            msg: `G ${msg.id} guessed the word!👏👏`,
+            scores: msg.scores,
+          })
+        } else {
+          dispatch({
+            type: "addMsg",
+            msg: `B ${msg.id} : ${msg.message}`,
+          })
+        }
+        break
+      case 4:
+        let options = {
+          type: "changeTurn",
+          msg: `S ${msg.turnID} is drawing now.`,
+          turnID: msg.turnID,
+          word: msg.word,
+        }
+        dispatch(options)
+        break
+      case 5:
+        ctx.current.clearRect(0, 0, 700, 500)
+        break
+      case 6:
+        dispatch({
+          type: "deltaPlayer",
+          msg: `O ${msg.id} joined the room.`,
+          scores: msg.scores,
+          names: msg.names,
+        })
+        break
+      case 7:
+        dispatch({
+          type: "deltaPlayer",
+          msg: `R ${msg.id} left the room.`,
+          scores: msg.scores,
+          names: msg.names,
+        })
+    }
+  }
+  let toastid = null
   useEffect(() => {
     // Initialize WebSocket
     const connectWebSocket = () => {
-      if (ws) {
-        ws.onerror = ws.onopen = ws.onclose = null
-        ws.close()
+      if (ws.current) {
+        ws.current.onerror = ws.current.onopen = ws.current.onclose = null
+        ws.current.close()
       }
-      const newWs = new WebSocket(`${url}/${p.roomID}`)
-      console.log("Attempting to connect to WebSocket:", `${url}/${p.roomID}`)
+      ws.current = new WebSocket(`${url}/${p.roomID}`)
+      // console.log("Attempting to connect to WebSocket:", `${url}/${p.roomID}`)
 
-      newWs.onopen = () => {
-        console.log("WebSocket connection opened")
+      ws.current.onopen = () => {
+        if (toastid) toast.remove(toastid)
+        //   console.log("WebSocket connection opened")
       }
 
-      newWs.onerror = (error) => {
+      ws.current.onerror = (error) => {
+        if (toastid) toast.remove(toastid)
         console.error("WebSocket error:", error)
       }
 
-      newWs.onclose = () => {
-        console.log("WebSocket connection closed")
+      ws.current.onclose = () => {
+        //   console.log("WebSocket connection closed")
         // Attempt to reconnect in case of a connection failure
         toast.error("Connection lost!")
-        setWs(null)
-        setId(null)
-        setTimeout(() => connectWebSocket(), 1000)
+        ws.current = null
+        if (toastid) toast.remove(toastid)
+        toastid = toast.loading("Trying to reconnect please wait...")
+        dispatch({ type: "setId", payload: null })
+        setTimeout(() => connectWebSocket(), 5000)
       }
-
-      newWs.onmessage = (message) => {
-        console.log("WebSocket message received:", message.data)
+      ws.current.onmessage = (message) => {
+        //   console.log(message);
         const msg = JSON.parse(message.data)
-
-        switch (msg.type) {
-          case 0:
-            if (msg.turnID === msg.id) setWord(msg.word)
-            setId(msg.id)
-            setTurnID(msg.turnID)
-            setScores(msg.scores)
-            console.log("here")
-            setNames(msg.names)
-            console.log(msg.names)
-
-            break
-          case 1:
-            break
-          case 3:
-            console.log(names);
-            if (msg.isTrue) {
-              setMsgArr([...msgArr, `G ${names[msg.id]} guessed the word!👏👏`])
-              setScores(msg.scores)
-            } else {
-              setMsgArr([...msgArr, `B ${names[msg.id]}: ${msg.message}`])
-            }
-            break
-
-          case 4:
-            console.log(names)
-            console.log(turnID)
-            setMsgArr([...msgArr, `S ${names[msg.turnID]} is drawing now.`])
-            setTurnID(msg.turnID)
-            if (msg.turnID === id) setWord(msg.word)
-            break
-
-          case 6:
-              setMsgArr([...msgArr, `O ${names[msg.id]} joined the room.`])
-              setScores((sco)=>sco[msg.id] = 0)
-              setNames((nam)=>nam[msg.id] = msg.name)
-            break
-
-          case 7:
-              setMsgArr([...msgArr, `R ${names[msg.id]} left the room.`])
-              var sco = scores
-              delete sco[msg.id]
-              setScores(sco => delete sco[msg.id])
-              var nam = names
-              delete nam[msg.id]
-              setNames(nam =>delete nam[msg.id])
-            break
-
-          default:
-            break
-        }
+        wsMessageHandler(msg)
       }
-
-      setWs(newWs)
     }
 
     connectWebSocket()
-
     // Cleanup on component unmount
     return () => {
-      if (ws) {
-        ws.onerror = ws.onopen = ws.onclose = null
-        ws.close()
+      if (ws.current) {
+        ws.current.onerror = ws.current.onopen = ws.current.onclose = null
+        ws.current.close()
+        dispatch({ type: "reset", payload: initialState })
       }
     }
   }, [p.roomID])
 
   useEffect(() => {
-    if (canvasRef.current != null) {
-      setCtx(canvasRef.current.getContext("2d"))
+    if (canvasRef?.current !== null) {
+      ctx.current = canvasRef.current.getContext("2d")
       rect.current = canvasRef.current.getBoundingClientRect()
     }
-  }, [canvasRef])
+  })
 
   function startDrawing(e) {
-    if (ws == null) {
-      console.log("ws not connected")
+    if (state.turnID !== state.id) {
       return
     }
-    if (!(turnID === id)) {
-      return
-    }
-    setIsDrawing(true)
-    ctx.lineWidth = eraseMode ? eraserWidth : strokeWidth
-    ctx.lineJoin = "round"
-    ctx.strokeStyle = color
-    console.log(e)
-    setLastX(e.clientX - rect.left)
-    setLastY(e.clientY - rect.top)
-    draw(e)
-    //   ws.send(JSON.stringify({x:e.clientX -  rect.left,y:e.clientY - rect.top}));
-  }
+    dispatch({ type: "setIsDrawing", payload: true })
+    rect.current = canvasRef.current.getBoundingClientRect()
 
-  function draw(e) {
-    if (!isDrawing) return
+    lastX = e.pageX - rect.current.left - window.scrollX
+    lastY = e.pageY - rect.current.top - window.scrollY
+    ctx.current.lineWidth = state.eraseMode
+      ? state.eraserWidth
+      : state.strokeWidth
+    ctx.current.strokeStyle = state.color
+    ctx.current.lineJoin = "round"
 
-    ctx.beginPath()
-    ctx.moveTo(lastX, lastY)
-    ctx.lineTo(e.clientX - rect.current.left, e.clientY - rect.current.top)
-    ctx.stroke()
-    ws.send(
+    ws.current.send(
       JSON.stringify({
-        x: e.clientX - rect.current.left,
-        y: e.clientY - rect.current.top,
-        lastX,
-        lastY,
+        type: 1,
+        x: lastX,
+        y: lastY,
+        color: state.color,
+        strokeWidth: state.strokeWidth,
       })
     )
-    setLastX(e.clientX - rect.current.left)
-    setLastY(e.clientY - rect.current.top)
+  }
+
+  function drawToo(x, y) {
+    ctx.current.beginPath()
+    ctx.current.moveTo(lastX, lastY)
+    ctx.current.lineTo(x, y)
+    ctx.current.stroke()
+    lastX = x
+    lastY = y
+  }
+  function draw(e) {
+    if (state.id !== state.turnID || !state.isDrawing) return
+    rect.current = canvasRef.current.getBoundingClientRect()
+    const x = e.pageX - rect.current.left - window.scrollX
+
+    const y = e.pageY - rect.current.top - window.scrollY
+
+    ctx.current.beginPath()
+    ctx.current.moveTo(lastX, lastY)
+    ctx.current.lineTo(x, y)
+
+    ctx.current.stroke()
+    ws.current.send(
+      JSON.stringify({
+        type: 2,
+        x: x,
+        y: y,
+      })
+    )
+    lastX = x
+    lastY = y
   }
 
   function stopDrawing() {
-    setIsDrawing(false)
+    if (!state.isDrawing) return
+    dispatch({ type: "setIsDrawing", payload: false })
   }
 
   const handleStrokeWidthChange = (event) => {
-    setStrokeWidth(+event.target.value)
-    ctx.lineWidth = strokeWidth
+    dispatch({ type: "setStrokeWidth", payload: +event.target.value })
+
+    ctx.current.lineWidth = state.strokeWidth
   }
 
   const handleEraserWidthChange = (event) => {
-    setEraserWidth(+event.target.value)
-  }
-  //   const sendGuess = () => {
-  //     // Send guess to server
-  //     // ...
-  //   }
-  const sendName = () => {
-    // Send guess to server
-    // ...
-    ws.send(JSON.stringify({ type: 0, name }))
+    dispatch({ type: "setEraserWidth", payload: +event.target.value })
   }
 
-  const sendMessage = () => {
-    // Send message to server
-    // ...
-    ws.send(JSON.stringify({ type: 3, id, message }))
+  const sendName = (name) => {
+    ws.current.send(JSON.stringify({ type: 0, name: name }))
   }
 
-  return id == null ? (
-    <div>
+  const sendMessage = (message) => {
+    ws.current.send(JSON.stringify({ type: 3, id: state.id, message: message }))
+  }
+
+  return state.id == null ? (
+    <div className="mx-auto flex min-h-[calc(100vh-5rem)] w-screen flex-col items-center justify-center">
+      <div className="flex flex-col text-justify text-base text-richblack-5">
+        <p>Enter your name to join the game, 😁</p>
+        <p>Without your name, it's not the same. 😎</p>
+      </div>
       <input
-        className="inputStyle"
+        className="rounded-md border-2 border-caribbeangreen-50 bg-richblack-700 px-4 py-2 text-lg text-white "
         type="text"
         id="name"
-        disabled={id != null}
-        value={name}
-        onChange={(e) => setName(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            const name = e.target.value
+            if (name.length > 8) {
+              toast.error("The name can contain a maximum of 8 letters!!")
+            }
+            if (name.split(" ").lenght > 1) {
+              toast.error("The Name can contain only one word!!")
+            }
+            sendName(e.target.value)
+          }
+        }}
       />
-      <button id="enter" onClick={sendName}>
-        Enter
-      </button>
     </div>
   ) : (
-    <div>
-      <p id="player"></p>
-
-      <div className="flex w-full justify-between gap-9 px-10 pt-6">
-        <div className="d-flex flex-column gap-2">
-          <div className="flex justify-between">
-            <div className="d-flex align-items-center gap-2 ">
-              <h1>Tools</h1>
+    <div className="mx-auto flex min-h-[calc(100vh-5rem)] w-[90%] justify-between px-10">
+      <div className=" flex w-[60%] flex-col gap-2">
+        <div className="h-full">
+          <div className="flex items-center gap-10 text-lg font-semibold text-richblack-50 ">
+            <h1>Canvas</h1>
+            {state.id === state.turnID && <p>Word : {state.word}</p>}
+          </div>
+          <canvas
+            onMouseDown={startDrawing}
+            onMouseUp={stopDrawing}
+            onMouseMove={draw}
+            onMouseOut={stopDrawing}
+            disabled={ws === null}
+            ref={canvasRef}
+            id="canvas"
+            width="780"
+            height="450"
+            className=" bg-white "
+          ></canvas>
+        </div>
+        {state.turnID === state.id && (
+          <div className="flex justify-between  rounded-md bg-richblack-700 p-4 text-lg text-richblack-25 ">
+            <div className="flex flex-col justify-between gap-2 ">
+              <h3 className="text-lg font-semibold text-richblack-50 ">
+                Tools :
+              </h3>
               <div className="flex justify-between">
                 <button
                   type="button"
-                  className="btn btn-sm btn-outline-primary"
-                  disabled={!eraseMode && !(turnID === id)}
-                  onClick={() => setEraseMode(false)}
+                  className={`w-fit rounded-md ${!state.eraseMode ? "border border-yellow-50 bg-transparent text-richblack-25" : "bg-yellow-50 text-richblack-900"} cursor-pointer px-1  text-base`}
+                  disabled={!state.eraseMode}
+                  onClick={() =>
+                    dispatch({ type: "setEraseMode", payload: false })
+                  }
                 >
                   Pen
                 </button>
-                <div className="flex gap-2">
+                <div className="flex justify-between gap-2">
                   <label htmlFor="strokeWidth" className="form-label">
-                    Stroke width
+                    Linewidth
                   </label>
                   <input
-                    disabled={eraseMode || !(turnID === id)}
+                    disabled={state.eraseMode}
                     type="range"
                     className="form-range"
                     min="1"
                     max="4"
                     step="1"
                     id="strokeWidth"
-                    value={strokeWidth}
+                    value={state.strokeWidth}
                     onChange={handleStrokeWidthChange}
                   />
                 </div>
@@ -254,28 +390,28 @@ const GameArena = () => {
               <div className="flex justify-between gap-2">
                 <button
                   type="button"
-                  className="btn btn-sm btn-outline-primary"
-                  disabled={eraseMode || !(turnID === id)}
+                  className={`w-fit rounded-md ${state.eraseMode ? "border border-yellow-50 bg-transparent text-richblack-25 " : "bg-yellow-50 text-richblack-900"} cursor-pointer px-1  text-base `}
+                  disabled={state.eraseMode}
                   onClick={() => {
-                    setEraseMode(true)
-                    setColor("#ffffff")
+                    dispatch({ type: "setEraseMode", payload: true })
+                    dispatch({ type: "setColor", payload: "#ffffff" })
                   }}
                 >
                   Eraser
                 </button>
                 <div className="flex gap-2">
                   <label htmlFor="eraserWidth" className="form-label">
-                    Eraser width
+                    Eraserwidth
                   </label>
                   <input
-                    disabled={!eraseMode || !(turnID === id)}
+                    disabled={!state.eraseMode}
                     type="range"
                     className="form-range"
                     min="1"
                     max="20"
                     step="1"
                     id="eraserWidth"
-                    value={eraserWidth}
+                    value={state.eraserWidth}
                     onChange={handleEraserWidthChange}
                   />
                 </div>
@@ -283,94 +419,75 @@ const GameArena = () => {
 
               <button
                 type="button"
-                className="btn btn-sm btn-outline-primary"
-                disabled={!eraseMode || !(turnID === id)}
-                onClick={() => ctx.clearRect(0, 0, 600, 550)}
+                className="w-fit cursor-pointer rounded-md bg-yellow-50 px-1  text-base text-richblack-900"
+                onClick={() => {
+                  ws.current.send(JSON.stringify({ type: 5 }))
+                  ctx.current.clearRect(0, 0, 700, 500)
+                }}
               >
                 Clear Canvas
               </button>
             </div>
             <Compact
-              disabled={!(turnID === id)}
-              color={color}
+              color={state.color}
               style={{
                 boxShadow:
                   "rgb(0 0 0 / 15%) 0px 0px 0px 1px, rgb(0 0 0 / 15%) 0px 8px 16px",
               }}
               onChange={(color) => {
-                setColor(color.hex)
+                dispatch({ type: "setColor", payload: color.hex })
               }}
             />
           </div>
-          <div className="">
-            <h1>Canvas</h1>
-            <canvas
-              onMouseDown={startDrawing}
-              onMouseUp={stopDrawing}
-              onMouseMove={draw}
-              onMouseOut={stopDrawing}
-              //   ref={(canvas) => {
-              //     if (canvas) {
-              //       setCtx(canvas.getContext("2d"))
-              //       rect.current = canvas.getBoundingClientRect()
-              //     }
-              //   }}
+        )}
+      </div>
+      <div className="flex flex-col gap-10">
+        <div className="">
+          <h2 className="text-lg font-semibold text-richblack-50">Scores</h2>
 
-              disabled={!(turnID === id) || ws === null}
-              ref={canvasRef}
-              id="canvas"
-              width="700"
-              height="500"
-              className="flex border-2"
-            ></canvas>
-          </div>
+          <Scores
+            names={state.names}
+            scores={state.scores}
+            id={state.id}
+            turnID={state.turnID}
+          ></Scores>
         </div>
-        <div className="flex w-full flex-col">
-          <div className="h-[30%]">
-            <h2>Score</h2>
-            <div className="flex flex-wrap gap-2">
-              {scores &&
-                Object.keys(scores).map((key) => (
-                  <div
-                    key={key}
-                    className={`flex min-w-12 flex-col items-center rounded-md px-2  ${key === turnID ? "bg-yellow-50" : "bg-blue-100"}`}
-                  >
-                    <p>
-                      {names[key]} {key === id && "(You)"}
-                    </p>
-                    <p>{scores[key]}</p>
-                  </div>
-                ))}
-            </div>
-          </div>
-          {/* <div className="flex h-[60%] justify-around gap-4 "> */}
-          <div className="mx-auto flex h-[80%] w-[360px] flex-col justify-end rounded-md border p-2">
-            <div id="messages">
-              {msgArr.map((msg, ind) => (
-                <p className={`bg-[${colorObj[msg[0]][ind % 2]}]`} key={ind}>
-                  {msg.substring(1)}
+
+        <div className="mx-auto flex h-[80%] max-h-[500px]  w-[360px] flex-col justify-end rounded-md bg-richblack-800 text-richblack-900 ">
+          <div className="overflow-y-scroll ">
+            {state.msgArr.map((msg, ind) => {
+              const mm = msg.split(" ")
+              return (
+                <p
+                  style={{ backgroundColor: colorObj[msg[0]][ind & 1] }}
+                  className="rounded-md px-2 py-[2px] text-lg "
+                  key={ind}
+                >
+                  {state.names[mm[1]]}
+                  {msg.substring(2 + mm[1].length)}
                 </p>
-              ))}
-            </div>
-            <div className="flex justify-evenly ">
+              )
+            })}
+          </div>
+          <div className="flex justify-evenly ">
+            {state.id !== state.turnID && (
               <input
                 className="inputStyle h-fit w-[80%]"
                 type="textarea"
                 id="message"
-                value={message}
+                value={state.message}
+                onChange={(e) =>
+                  dispatch({ type: "setMessage", payload: e.target.value })
+                }
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
-                    sendMessage()
+                    dispatch({ type: "setMessage", payload: "" })
+                    sendMessage(e.target.value)
                   }
                 }}
-                onChange={(e) => setMessage(e.target.value)}
               />
-              {/* <button id="send" onClick={sendMessage}>
-                  Send
-                </button> */}
-            </div>
+            )}
           </div>
-          {/* </div> */}
         </div>
       </div>
     </div>
