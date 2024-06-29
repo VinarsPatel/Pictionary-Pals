@@ -73,80 +73,113 @@ const wsServer = new WebSocket.Server({ server }) // a websocket server
 
 server.on("request", app)
 
-wsServer.on("connection", function (ws, req) {
-  var roomID = req.url.substring(1)
-
-  const messageSender = (messageObj) => {
-    const users = webSockets[roomID].users
-    Object.keys(users).forEach(function each(userID) {
-      if (users[userID] != ws) {
-        if (users[userID]?.readyState === WebSocket.OPEN)
-          users[userID].send(JSON.stringify(messageObj))
-        else {
-          var name = webSockets[roomID].names[userID]
-          delete webSockets[roomID].users[userID]
-          delete webSockets[roomID].names[userID]
-          delete webSockets[roomID].scores[userID]
-          webSockets[roomID].count -= 1
-          messageSender({
+const messageSender = (messageObj, roomID, ws = null) => {
+  const users = webSockets[roomID].users
+  Object.keys(users).forEach(function each(userID) {
+    if (users[userID] != ws) {
+      if (users[userID]?.readyState === WebSocket.OPEN)
+        users[userID].send(JSON.stringify(messageObj))
+      else {
+        var name = webSockets[roomID].names[userID]
+        delete webSockets[roomID].users[userID]
+        delete webSockets[roomID].names[userID]
+        delete webSockets[roomID].scores[userID]
+        webSockets[roomID].count -= 1
+        messageSender(
+          {
             type: 7,
             name,
             id: userID,
             names: webSockets[roomID].names,
             scores: webSockets[roomID].scores,
-          })
-        }
+          },
+          roomID
+        )
+      }
+    }
+  })
+}
+
+const removeClosedConnection = (roomID) => {
+  const users = webSockets[roomID]?.users
+  let f = 0
+  if (users != null) {
+    Object.keys(users).forEach(function each(userID) {
+      if (users[userID]?.readyState !== WebSocket.OPEN) {
+        f++
+        var name = webSockets[roomID].names[userID]
+        delete webSockets[roomID].users[userID]
+        delete webSockets[roomID].names[userID]
+        delete webSockets[roomID].scores[userID]
+        webSockets[roomID].count -= 1
+        messageSender(
+          {
+            type: 7,
+            name,
+            id: userID,
+            names: webSockets[roomID].names,
+            scores: webSockets[roomID].scores,
+          },
+          roomID
+        )
       }
     })
   }
+}
 
-  const removeClosedConnection = () => {
-    const users = webSockets[roomID]?.users
-    let f = 0
-    if (users != null) {
-      Object.keys(users).forEach(function each(userID) {
-        if (users[userID]?.readyState !== WebSocket.OPEN) {
-          f++
-          var name = webSockets[roomID].names[userID]
-          delete webSockets[roomID].users[userID]
-          delete webSockets[roomID].names[userID]
-          delete webSockets[roomID].scores[userID]
-          webSockets[roomID].count -= 1
-          messageSender({
-            type: 7,
-            name,
-            id: userID,
-            names: webSockets[roomID].names,
-            scores: webSockets[roomID].scores,
-          })
-        }
-      })
-    }
+const changeTurn = (roomID, time) => {
+  console.log(webSockets[roomID].time, " jm ", time)
+  if (webSockets[roomID].time != time) {
+    return
   }
-  const changeTurn = () => {
-    const keys = Object.keys(webSockets[roomID].users)
-    const ind = keys.findIndex((x) => x == webSockets[roomID].turnID)
-    if (ind == keys.length) {
-      ind = 0
-    }
-    webSockets[roomID].turnID = parseInt(keys[ind + 1])
-    webSockets[roomID].ans = getWord()
-    ws.send(
-      JSON.stringify({
-        type: 4,
-        turnID: webSockets[roomID].turnID,
-        word: webSockets[roomID].ans,
-      })
-    )
-    messageSender({
+
+  const keys = Object.keys(webSockets[roomID].users)
+  if (keys.length <= 1) return
+  let ind = keys.findIndex((x) => x == webSockets[roomID].turnID)
+  if (ind == keys.length - 1) {
+    ind = -1
+  }
+  webSockets[roomID].status = []
+  webSockets[roomID].turnID = parseInt(keys[ind + 1])
+  webSockets[roomID].ans = getWord()
+  webSockets[roomID].time = new Date(Date.now())
+  webSockets[roomID].users[keys[ind + 1]].send(
+    JSON.stringify({
+      x: "x",
       type: 4,
       turnID: webSockets[roomID].turnID,
+      word: webSockets[roomID].ans,
+      time: webSockets[roomID].time,
     })
-  }
+  )
+  messageSender(
+    {
+      type: 4,
+      y: "y",
+      turnID: webSockets[roomID].turnID,
+      time: webSockets[roomID].time,
+    },
+    roomID,
+    webSockets[roomID].users[keys[ind + 1]]
+  )
+  setTimeout(
+    (function (roomID, time) {
+      return function () {
+        changeTurn(roomID, time)
+      }
+    })(roomID, webSockets[roomID].time),
+    60000
+  )
+  //   setTimeout(() => changeTurn(roomID, webSockets[roomID].time), 60000)
+}
+
+wsServer.on("connection", function (ws, req) {
+  var roomID = req.url.substring(1)
+
   ws.on("message", (message) => {
     // Echo the message back to the client
     const msg = JSON.parse(message)
-    removeClosedConnection()
+    removeClosedConnection(roomID)
     switch (msg.type) {
       case 0:
         if (
@@ -160,6 +193,8 @@ wsServer.on("connection", function (ws, req) {
             users: { 1: ws },
             names: { 1: msg.name },
             scores: { 1: 0 },
+            status: [],
+            time: null,
           }
           ws.send(
             JSON.stringify({
@@ -168,6 +203,7 @@ wsServer.on("connection", function (ws, req) {
               turnID: webSockets[roomID].turnID,
               names: webSockets[roomID].names,
               scores: webSockets[roomID].scores,
+              time: webSockets[roomID].time,
             })
           )
         } else {
@@ -177,16 +213,32 @@ wsServer.on("connection", function (ws, req) {
           webSockets[roomID].users[ind] = ws
           webSockets[roomID].names[ind] = msg.name
           webSockets[roomID].scores[ind] = 0
+
           if (webSockets[roomID].count == 2) {
             webSockets[roomID].turnID = parseInt(
               Object.keys(webSockets[roomID].users)[0]
             )
             webSockets[roomID].ans = getWord()
-            messageSender({
-              type: 4,
-              turnID: webSockets[roomID].turnID,
-              word: webSockets[roomID].ans,
-            })
+            webSockets[roomID].time = new Date(Date.now())
+            messageSender(
+              {
+                type: 4,
+                z: "z",
+                turnID: webSockets[roomID].turnID,
+                word: webSockets[roomID].ans,
+                time: webSockets[roomID].time,
+              },
+              roomID,
+              ws
+            )
+            setTimeout(
+              (function (roomID, time) {
+                return function () {
+                  changeTurn(roomID, time)
+                }
+              })(roomID, webSockets[roomID].time),
+              60000
+            )
           }
 
           ws.send(
@@ -196,43 +248,63 @@ wsServer.on("connection", function (ws, req) {
               turnID: webSockets[roomID].turnID,
               names: webSockets[roomID].names,
               scores: webSockets[roomID].scores,
+              time: webSockets[roomID].time,
             })
           )
-          messageSender({
-            type: 6,
-            name: msg.name,
-            id: ind,
-            names: webSockets[roomID].names,
-            scores: webSockets[roomID].scores,
-          })
+          messageSender(
+            {
+              type: 6,
+              name: msg.name,
+              id: ind,
+              names: webSockets[roomID].names,
+              scores: webSockets[roomID].scores,
+            },
+            roomID,
+            ws
+          )
         }
         break
 
       case 1:
-        messageSender(msg)
+        messageSender(msg, roomID, ws)
         break
 
       case 2:
-        messageSender(msg)
+        messageSender(msg, roomID, ws)
         break
 
       case 3:
         if (msg.id === webSockets[roomID].turnID) break
-        if (msg.message == webSockets[roomID].ans) {
+        if (msg.message.toLowerCase() == webSockets[roomID].ans) {
+          if (webSockets[roomID].status.includes(msg.id)) return
           msg.isTrue = true
-          webSockets[roomID].scores[msg.id] += 50
-          webSockets[roomID].scores[webSockets[roomID].turnID] += 25
+
+          const diff = Date.now() - webSockets[roomID].time
+          if (diff > 60000) return
+          webSockets[roomID].scores[msg.id] += Math.floor(100 - diff / 600)
+          webSockets[roomID].scores[webSockets[roomID].turnID] += Math.floor(
+            50 - diff / 1200
+          )
+
+          webSockets[roomID].status.push(msg.id)
           msg.scores = webSockets[roomID].scores
+          messageSender(msg, roomID, ws)
+          ws.send(JSON.stringify(msg))
+          if (
+            webSockets[roomID].status.length ===
+            Object.keys(webSockets[roomID].users).length - 1
+          ) {
+            changeTurn(roomID, webSockets[roomID].time)
+          }
         } else {
           msg.isTrue = false
+          messageSender(msg, roomID, ws)
+          ws.send(JSON.stringify(msg))
         }
-        messageSender(msg)
-        ws.send(JSON.stringify(msg))
-        if (msg.isTrue) setTimeout(changeTurn, 1000)
         break
 
       case 5:
-        messageSender(msg)
+        messageSender(msg, roomID, ws)
         break
     }
   })

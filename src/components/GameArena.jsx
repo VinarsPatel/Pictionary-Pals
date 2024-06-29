@@ -1,8 +1,9 @@
-import React, { useEffect, useRef, useReducer } from "react"
+import React, { useEffect, useRef, useReducer, useState } from "react"
 import Compact from "@uiw/react-color-compact"
 import { useParams } from "react-router-dom"
 import toast from "react-hot-toast"
 import Scores from "./Scores"
+import { CountdownCircleTimer } from "react-countdown-circle-timer"
 const colorObj = {
   G: ["#00f000", "#00800"],
   O: ["#ffa500", "#ff5f1f"],
@@ -55,6 +56,8 @@ function reducer(state, action) {
       return { ...state, strokeWidth: action.strokeWidth, color: action.color }
     case "setId":
       return { ...state, id: action.payload }
+    case "setTurnID":
+      return { ...state, turnID: action.payload }
     case "addMsg":
       return { ...state, msgArr: [...state.msgArr, action.msg] }
     case "correctGuess":
@@ -82,13 +85,27 @@ function reducer(state, action) {
   }
 }
 
+// const renderTime = ({ remainingTime }) => {
+//   if (remainingTime === 0) {
+//     return <div className="timer">Times up...</div>
+//   }
+
+//   return (
+//     <div className="timer">
+//       <div className="text">Remaining</div>
+//       <div className="value">{remainingTime}</div>
+//       <div className="text">seconds</div>
+//     </div>
+//   )
+// }
+
 const GameArena = () => {
   const [state, dispatch] = useReducer(reducer, initialState)
   const canvasRef = useRef(null)
   const p = useParams()
   const ctx = useRef(null)
   const rect = useRef(null)
-
+  const [time, setTime] = useState(null)
   let lastX
   let lastY
 
@@ -117,6 +134,7 @@ const GameArena = () => {
           ws.current.send(JSON.stringify({ type: 5 }))
         }
         dispatch(opt)
+        setTime(msg.time)
         break
       case 1:
         dispatch({
@@ -151,9 +169,10 @@ const GameArena = () => {
           word: msg.word,
         }
         dispatch(options)
+        setTime(msg.time)
         break
       case 5:
-        ctx.current.clearRect(0, 0, 700, 500)
+        ctx.current.clearRect(0, 0, 780, 450)
         break
       case 6:
         dispatch({
@@ -194,13 +213,13 @@ const GameArena = () => {
       }
 
       ws.current.onclose = () => {
-        //   console.log("WebSocket connection closed")
+        // console.log("WebSocket connection closed")
         // Attempt to reconnect in case of a connection failure
         toast.error("Connection lost!")
         ws.current = null
         if (toastid) toast.remove(toastid)
         toastid = toast.loading("Trying to reconnect please wait...")
-        dispatch({ type: "setId", payload: null })
+        dispatch({ type: "reset", payload: initialState })
         setTimeout(() => connectWebSocket(), 5000)
       }
       ws.current.onmessage = (message) => {
@@ -249,7 +268,7 @@ const GameArena = () => {
         x: lastX,
         y: lastY,
         color: state.color,
-        strokeWidth: state.strokeWidth,
+        strokeWidth: state.eraseMode ? state.eraserWidth : state.strokeWidth,
       })
     )
   }
@@ -298,15 +317,42 @@ const GameArena = () => {
 
   const handleEraserWidthChange = (event) => {
     dispatch({ type: "setEraserWidth", payload: +event.target.value })
+    ctx.current.lineWidth = state.eraseWidth
   }
 
   const sendName = (name) => {
+    if (ws == null) {
+      toast.error("Estabilishing connection please wait...")
+      return
+    }
     ws.current.send(JSON.stringify({ type: 0, name: name }))
   }
 
   const sendMessage = (message) => {
     ws.current.send(JSON.stringify({ type: 3, id: state.id, message: message }))
   }
+
+  const [timer, setTimer] = useState(null)
+  const inc = useRef(null)
+  useEffect(() => {
+    if (inc?.current) clearInterval(inc.current)
+
+    inc.current = setInterval(() => {
+      setTimer(() => {
+        const x = 60 + parseInt(new Date(time) - Date.now()) / 1000
+        //   console.log(x)
+        if (x > 0) return Math.floor(x)
+        else {
+          clearInterval(inc.current)
+          setTime(null)
+          dispatch({ type: "setTurnID", payload: null })
+          return 0
+        }
+      })
+
+      return () => clearInterval(inc.current)
+    }, 1000)
+  }, [time])
 
   return state.id == null ? (
     <div className="mx-auto flex min-h-[calc(100vh-5rem)] w-screen flex-col items-center justify-center">
@@ -323,9 +369,11 @@ const GameArena = () => {
             const name = e.target.value
             if (name.length > 8) {
               toast.error("The name can contain a maximum of 8 letters!!")
+              return
             }
             if (name.split(" ").lenght > 1) {
               toast.error("The Name can contain only one word!!")
+              return
             }
             sendName(e.target.value)
           }
@@ -336,9 +384,14 @@ const GameArena = () => {
     <div className="mx-auto flex min-h-[calc(100vh-5rem)] w-[90%] justify-between px-10">
       <div className=" flex w-[60%] flex-col gap-2">
         <div className="h-full">
-          <div className="flex items-center gap-10 text-lg font-semibold text-richblack-50 ">
-            <h1>Canvas</h1>
-            {state.id === state.turnID && <p>Word : {state.word}</p>}
+          <div className="flex items-center justify-between gap-10 text-lg font-semibold text-richblack-50 ">
+            <h1 className="basis-1/3 ">Canvas</h1>
+            {state.id === state.turnID && (
+              <p className="basis-1/3 ">Word : {state.word}</p>
+            )}
+            {time && (
+              <div className="basis-1/3 text-pink-200">Countdown: {timer}</div>
+            )}
           </div>
           <canvas
             onMouseDown={startDrawing}
