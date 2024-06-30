@@ -128,7 +128,6 @@ const removeClosedConnection = (roomID) => {
 }
 
 const changeTurn = (roomID, time) => {
-  console.log(webSockets[roomID].time, " jm ", time)
   if (webSockets[roomID].time != time) {
     return
   }
@@ -145,7 +144,6 @@ const changeTurn = (roomID, time) => {
   webSockets[roomID].time = new Date(Date.now())
   webSockets[roomID].users[keys[ind + 1]].send(
     JSON.stringify({
-      x: "x",
       type: 4,
       turnID: webSockets[roomID].turnID,
       word: webSockets[roomID].ans,
@@ -155,7 +153,6 @@ const changeTurn = (roomID, time) => {
   messageSender(
     {
       type: 4,
-      y: "y",
       turnID: webSockets[roomID].turnID,
       time: webSockets[roomID].time,
     },
@@ -223,7 +220,6 @@ wsServer.on("connection", function (ws, req) {
             messageSender(
               {
                 type: 4,
-                z: "z",
                 turnID: webSockets[roomID].turnID,
                 word: webSockets[roomID].ans,
                 time: webSockets[roomID].time,

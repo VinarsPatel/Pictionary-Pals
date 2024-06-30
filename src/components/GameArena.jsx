@@ -3,14 +3,8 @@ import Compact from "@uiw/react-color-compact"
 import { useParams } from "react-router-dom"
 import toast from "react-hot-toast"
 import Scores from "./Scores"
-import { CountdownCircleTimer } from "react-countdown-circle-timer"
-const colorObj = {
-  G: ["#00f000", "#00800"],
-  O: ["#ffa500", "#ff5f1f"],
-  R: ["#ff0000", "#800000"],
-  S: ["#00c8ff", "#0082ff"],
-  B: ["#b0b0b0", "#a0a0a0"],
-}
+
+import ChatBox from "./ChatBox"
 
 const initialState = {
   message: "",
@@ -106,15 +100,16 @@ const GameArena = () => {
   const ctx = useRef(null)
   const rect = useRef(null)
   const [time, setTime] = useState(null)
-  let lastX
-  let lastY
+  let lastX = useRef(null)
+  let lastY = useRef(null)
+
 
   const ws = useRef(null)
   const url = "ws://localhost:9833"
 
   const setVar = (msg) => {
-    lastX = msg.x
-    lastY = msg.y
+    lastX.current = msg.x
+    lastY.current = msg.y
     ctx.current.lineWidth = msg.strokeWidth
     ctx.current.strokeStyle = msg.color
   }
@@ -170,6 +165,7 @@ const GameArena = () => {
         }
         dispatch(options)
         setTime(msg.time)
+        ctx.current.clearRect(0, 0, 780, 450)
         break
       case 5:
         ctx.current.clearRect(0, 0, 780, 450)
@@ -254,8 +250,8 @@ const GameArena = () => {
     dispatch({ type: "setIsDrawing", payload: true })
     rect.current = canvasRef.current.getBoundingClientRect()
 
-    lastX = e.pageX - rect.current.left - window.scrollX
-    lastY = e.pageY - rect.current.top - window.scrollY
+    lastX.current = e.pageX - rect.current.left - window.scrollX
+    lastY.current = e.pageY - rect.current.top - window.scrollY
     ctx.current.lineWidth = state.eraseMode
       ? state.eraserWidth
       : state.strokeWidth
@@ -265,8 +261,8 @@ const GameArena = () => {
     ws.current.send(
       JSON.stringify({
         type: 1,
-        x: lastX,
-        y: lastY,
+        x: lastX.current,
+        y: lastY.current,
         color: state.color,
         strokeWidth: state.eraseMode ? state.eraserWidth : state.strokeWidth,
       })
@@ -275,24 +271,28 @@ const GameArena = () => {
 
   function drawToo(x, y) {
     ctx.current.beginPath()
-    ctx.current.moveTo(lastX, lastY)
+    ctx.current.moveTo(lastX.current, lastY.current)
     ctx.current.lineTo(x, y)
     ctx.current.stroke()
-    lastX = x
-    lastY = y
+    lastX.current = x
+    lastY.current = y
   }
   function draw(e) {
     if (state.id !== state.turnID || !state.isDrawing) return
     rect.current = canvasRef.current.getBoundingClientRect()
     const x = e.pageX - rect.current.left - window.scrollX
-
     const y = e.pageY - rect.current.top - window.scrollY
-
     ctx.current.beginPath()
-    ctx.current.moveTo(lastX, lastY)
+    ctx.current.moveTo(lastX.current, lastY.current)
     ctx.current.lineTo(x, y)
 
     ctx.current.stroke()
+    sendCord(x, y)
+    lastX.current = x
+    lastY.current = y
+  }
+
+  const sendCord = async (x, y) => {
     ws.current.send(
       JSON.stringify({
         type: 2,
@@ -300,10 +300,7 @@ const GameArena = () => {
         y: y,
       })
     )
-    lastX = x
-    lastY = y
   }
-
   function stopDrawing() {
     if (!state.isDrawing) return
     dispatch({ type: "setIsDrawing", payload: false })
@@ -355,7 +352,7 @@ const GameArena = () => {
   }, [time])
 
   return state.id == null ? (
-    <div className="mx-auto flex min-h-[calc(100vh-5rem)] w-screen flex-col items-center justify-center">
+    <div className="mx-auto flex min-h-[calc(100vh-5rem)] min-w-[400px] w-screen flex-col items-center justify-center">
       <div className="flex flex-col text-justify text-base text-richblack-5">
         <p>Enter your name to join the game, 😁</p>
         <p>Without your name, it's not the same. 😎</p>
@@ -381,7 +378,7 @@ const GameArena = () => {
       />
     </div>
   ) : (
-    <div className="mx-auto flex min-h-[calc(100vh-5rem)] w-[90%] justify-between px-10">
+    <div className="mx-auto flex min-h-[calc(100vh-5rem)] w-[90%] min-w-[1400px]  justify-between px-10">
       <div className=" flex w-[60%] flex-col gap-2">
         <div className="h-full">
           <div className="flex items-center justify-between gap-10 text-lg font-semibold text-richblack-50 ">
@@ -507,21 +504,7 @@ const GameArena = () => {
         </div>
 
         <div className="mx-auto flex h-[80%] max-h-[500px]  w-[360px] flex-col justify-end rounded-md bg-richblack-800 text-richblack-900 ">
-          <div className="overflow-y-scroll ">
-            {state.msgArr.map((msg, ind) => {
-              const mm = msg.split(" ")
-              return (
-                <p
-                  style={{ backgroundColor: colorObj[msg[0]][ind & 1] }}
-                  className="rounded-md px-2 py-[2px] text-lg "
-                  key={ind}
-                >
-                  {state.names[mm[1]]}
-                  {msg.substring(2 + mm[1].length)}
-                </p>
-              )
-            })}
-          </div>
+          <ChatBox msgArr={state.msgArr} names={state.names}/>
           <div className="flex justify-evenly ">
             {state.id !== state.turnID && (
               <input
