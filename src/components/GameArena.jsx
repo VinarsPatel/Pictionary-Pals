@@ -105,7 +105,7 @@ const GameArena = () => {
 
 
   const ws = useRef(null)
-  const url = process.env.REACT_APP_WS_URL
+  
 
   const setVar = (msg) => {
     lastX.current = msg.x
@@ -114,6 +114,7 @@ const GameArena = () => {
     ctx.current.strokeStyle = msg.color
   }
   const wsMessageHandler = (msg) => {
+   // console.log(msg)
     switch (msg.type) {
       case 0:
         let opt = {
@@ -198,7 +199,7 @@ const GameArena = () => {
         ws.current.onerror = ws.current.onopen = ws.current.onclose = null
         ws.current.close()
       }
-      ws.current = new WebSocket(`${url}/${p.roomID}`)
+      ws.current = new WebSocket(`${process.env.REACT_APP_WS_URL}/${p.roomID}`)
       // console.log("Attempting to connect to WebSocket:", `${url}/${p.roomID}`)
 
       ws.current.onopen = () => {
@@ -507,7 +508,7 @@ const GameArena = () => {
         </div>
 
         <div className="mx-auto flex h-[80%] max-h-[500px]  w-[360px] flex-col justify-end rounded-md bg-richblack-800 text-richblack-900 ">
-          <ChatBox msgArr={state.msgArr} names={state.names}/>
+          <ChatBox msgArr={state.msgArr}/>
           <div className="flex justify-evenly ">
             {state.id !== state.turnID && (
               <input
