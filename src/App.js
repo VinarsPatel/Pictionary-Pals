@@ -10,7 +10,7 @@ function App() {
       <Navbar />
       <Routes>
         <Route path="/room/:roomID" element={<GameArena />}></Route>
-        <Route path="/home" element={<HomePage />}></Route>
+        <Route path="/" element={<HomePage />}></Route>
       </Routes>
     </div>
   )

@@ -306,6 +306,6 @@ wsServer.on("connection", function (ws, req) {
   })
 })
 
-server.listen(process.env.PORT, () => {
+server.listen(process.env.PORT || 4000, () => {
   //   console.log("http server started")
 })
