@@ -9,7 +9,7 @@ const HomePage = () => {
     setLoading(true)
     try {
       const BASE_URL = process.env.REACT_APP_SERVER_URL
-      const response = await fetch(`${BASE_URL}getRoom`)
+      const response = await fetch(`${BASE_URL}/getRoom`)
       const data = await response.json()
       setRoomId(data.roomId)
     } catch (error) {
@@ -42,12 +42,12 @@ const HomePage = () => {
       {roomId && (
         <div className="flex gap-2">
           <a
-            href={`${process.env.REACT_APP_BASE_URL}/room/${roomId}`}
+            href={`${process.env.REACT_APP_BASE_URL}room/${roomId}`}
             target="_blank"
             rel="noreferrer"
             className="hover:bg-purple-700 rounded-md bg-richblack-700 px-4 py-2 text-white"
           >
-            {`${process.env.REACT_APP_BASE_URL}/room/${roomId}`}/
+            {`${process.env.REACT_APP_BASE_URL}room/${roomId}`}/
           </a>
           <p
             onClick={copyToClipboard}
