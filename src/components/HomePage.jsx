@@ -9,7 +9,7 @@ const HomePage = () => {
     setLoading(true)
     try {
       const BASE_URL = process.env.REACT_APP_SERVER_URL
-      const response = await fetch(`${BASE_URL}/getRoom`)
+      const response = await fetch(`${BASE_URL}getRoom`)
       const data = await response.json()
       setRoomId(data.roomId)
     } catch (error) {

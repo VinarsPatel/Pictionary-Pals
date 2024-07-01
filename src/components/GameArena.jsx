@@ -105,7 +105,7 @@ const GameArena = () => {
 
 
   const ws = useRef(null)
-  const url = "ws://localhost:9833"
+  const url = process.env.REACT_APP_WS_URL
 
   const setVar = (msg) => {
     lastX.current = msg.x
@@ -146,20 +146,20 @@ const GameArena = () => {
         if (msg.isTrue) {
           dispatch({
             type: "correctGuess",
-            msg: `G ${msg.id} guessed the word!👏👏`,
+            msg: msg.message,
             scores: msg.scores,
           })
         } else {
           dispatch({
             type: "addMsg",
-            msg: `B ${msg.id} : ${msg.message}`,
+            msg: msg.message,
           })
         }
         break
       case 4:
         let options = {
           type: "changeTurn",
-          msg: `S ${msg.turnID} is drawing now.`,
+          msg: msg.message,
           turnID: msg.turnID,
           word: msg.word,
         }
@@ -173,7 +173,7 @@ const GameArena = () => {
       case 6:
         dispatch({
           type: "deltaPlayer",
-          msg: `O ${msg.id} joined the room.`,
+          msg: `O ${msg.name} joined the room.`,
           scores: msg.scores,
           names: msg.names,
         })
@@ -181,13 +181,16 @@ const GameArena = () => {
       case 7:
         dispatch({
           type: "deltaPlayer",
-          msg: `R ${msg.id} left the room.`,
+          msg: `R ${msg.name} left the room.`,
           scores: msg.scores,
           names: msg.names,
         })
+        break;
+        default:
+         break;
     }
   }
-  let toastid = null
+  let toastid = useRef(null)
   useEffect(() => {
     // Initialize WebSocket
     const connectWebSocket = () => {
@@ -199,12 +202,12 @@ const GameArena = () => {
       // console.log("Attempting to connect to WebSocket:", `${url}/${p.roomID}`)
 
       ws.current.onopen = () => {
-        if (toastid) toast.remove(toastid)
+        if (toastid.current) toast.remove(toastid.current)
         //   console.log("WebSocket connection opened")
       }
 
       ws.current.onerror = (error) => {
-        if (toastid) toast.remove(toastid)
+        if (toastid.current) toast.remove(toastid.current)
         console.error("WebSocket error:", error)
       }
 
@@ -213,8 +216,8 @@ const GameArena = () => {
         // Attempt to reconnect in case of a connection failure
         toast.error("Connection lost!")
         ws.current = null
-        if (toastid) toast.remove(toastid)
-        toastid = toast.loading("Trying to reconnect please wait...")
+        if (toastid.current) toast.remove(toastid.current)
+        toastid.current = toast.loading("Trying to reconnect please wait...")
         dispatch({ type: "reset", payload: initialState })
         setTimeout(() => connectWebSocket(), 5000)
       }
@@ -318,7 +321,7 @@ const GameArena = () => {
   }
 
   const sendName = (name) => {
-    if (ws == null) {
+    if (ws.current.readyState !== WebSocket.OPEN) {
       toast.error("Estabilishing connection please wait...")
       return
     }

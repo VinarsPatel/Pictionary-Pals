@@ -26,15 +26,13 @@ const ChatBox = ({ msgArr, names }) => {
   return (
     <div className="overflow-y-scroll h-fit" ref={chatBox}>
       {msgArr.map((msg, ind) => {
-        const mm = msg.split(" ");
         return (
           <p
             style={{ backgroundColor: colorObj[msg[0]][ind & 1] }}
             className="rounded-md px-2 py-[2px] text-lg"
             key={ind}
           >
-            {names[mm[1]]}
-            {msg.substring(2 + mm[1].length)}
+            {msg.substring(2)}
           </p>
         );
       })}

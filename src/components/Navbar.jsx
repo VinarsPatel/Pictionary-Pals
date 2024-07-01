@@ -4,7 +4,7 @@ import { Link } from "react-router-dom"
 const Navbar = () => {
   return (
     <div className="flex  h-14 items-center justify-center bg-richblack-900 px-4 ">
-      <Link to={"/home"} className="cursor-pointer">
+      <Link to={"/"} className="cursor-pointer">
         <p className="text-3xl font-bold leading-7 text-richblack-25">
           <span
             style={{

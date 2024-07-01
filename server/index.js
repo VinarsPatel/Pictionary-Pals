@@ -148,6 +148,7 @@ const changeTurn = (roomID, time) => {
       turnID: webSockets[roomID].turnID,
       word: webSockets[roomID].ans,
       time: webSockets[roomID].time,
+      message:`S ${webSockets[roomID].names[keys[ind + 1]]} is drawing now.`
     })
   )
   messageSender(
@@ -155,6 +156,7 @@ const changeTurn = (roomID, time) => {
       type: 4,
       turnID: webSockets[roomID].turnID,
       time: webSockets[roomID].time,
+      message:`S ${webSockets[roomID].names[keys[ind + 1]]} is drawing now.`
     },
     roomID,
     webSockets[roomID].users[keys[ind + 1]]
@@ -284,6 +286,7 @@ wsServer.on("connection", function (ws, req) {
 
           webSockets[roomID].status.push(msg.id)
           msg.scores = webSockets[roomID].scores
+          msg.message = `G ${webSockets[roomID].names[msg.id]} guessed the word!👏👏`
           messageSender(msg, roomID, ws)
           ws.send(JSON.stringify(msg))
           if (
@@ -294,6 +297,7 @@ wsServer.on("connection", function (ws, req) {
           }
         } else {
           msg.isTrue = false
+          msg.message = `B ${webSockets[roomID].names[msg.id]} : ${msg.message}`
           messageSender(msg, roomID, ws)
           ws.send(JSON.stringify(msg))
         }
