@@ -225,6 +225,8 @@ wsServer.on("connection", function (ws, req) {
                 turnID: webSockets[roomID].turnID,
                 word: webSockets[roomID].ans,
                 time: webSockets[roomID].time,
+               message:`S ${webSockets[roomID].names[webSockets[roomID].turnID]} is drawing now.`
+
               },
               roomID,
               ws
