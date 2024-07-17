@@ -32,7 +32,7 @@ const HomePage = () => {
   }
 
   return (
-    <div className="Justify-center flex min-h-[550px] flex-col items-center justify-center gap-4">
+    <div className="Justify-center flex min-h-[650px] flex-col items-center justify-center gap-4">
       <button
         onClick={fetchRoomId}
         disabled={loading}

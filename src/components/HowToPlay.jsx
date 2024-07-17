@@ -2,7 +2,7 @@ import React from "react"
 
 const HowToPlay = () => {
   return (
-    <div className="text-richblack-25 ">
+    <div className="text-richblack-25 text-lg ">
       <h2 className="text-caribbeangreen-100 ">How to Play Pictionary Pals</h2>
 
       <h3 className="text-pink-100">Step 1: Create a Private Room</h3>
