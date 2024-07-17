@@ -1,6 +1,7 @@
 import React, { useState } from "react"
 import toast from "react-hot-toast"
 import { FaRegCopy } from "react-icons/fa"
+import HowToPlay from "./HowToPlay"
 const HomePage = () => {
   const [roomId, setRoomId] = useState(null)
   const [loading, setLoading] = useState(false)
@@ -31,7 +32,7 @@ const HomePage = () => {
   }
 
   return (
-    <div className="Justify-center flex min-h-[500px] flex-col items-center justify-center gap-4">
+    <div className="Justify-center flex min-h-[550px] flex-col items-center justify-center gap-4">
       <button
         onClick={fetchRoomId}
         disabled={loading}
@@ -57,6 +58,9 @@ const HomePage = () => {
           </p>
         </div>
       )}
+      <div>
+         <HowToPlay/>
+      </div>
     </div>
   )
 }
