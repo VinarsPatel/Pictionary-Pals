@@ -3,6 +3,8 @@ import React from "react"
 const HowToPlay = () => {
   return (
     <div className="text-richblack-25 text-lg ">
+      <h2 className="text-pink-100">Server takes time to respond because of free plan so please be patient & try again after some intervel !!</h2>
+      <h2 className="text-pink-100">Fast server costs money 😅</h2>
       <h2 className="text-caribbeangreen-100 ">How to Play Pictionary Pals</h2>
 
       <h3 className="text-pink-100">Step 1: Create a Private Room</h3>

@@ -126,7 +126,7 @@ const GameArena = () => {
         }
         if (msg.turnID === msg.id) {
           opt["word"] = msg.word
-          ctx.current.clearRect(0, 0, 700, 500)
+          ctx.current.clearRect(0, 0, 780, 450)
           ws.current.send(JSON.stringify({ type: 5 }))
         }
         dispatch(opt)
