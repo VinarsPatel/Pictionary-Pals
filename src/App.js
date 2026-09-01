@@ -6,7 +6,7 @@ import Navbar from "./components/Navbar"
 
 function App() {
   return (
-    <div className="min-h-screen min-w-[1400px] bg-richblack-800 font-inter transition-all  duration-200">
+    <div className="min-h-screen w-full overflow-x-hidden bg-violet-50 font-inter text-slate-800">
       <Navbar />
       <Routes>
         <Route path="/room/:roomID" element={<GameArena />}></Route>
