@@ -1,0 +1,6 @@
+node_modules
+build
+coverage
+server/data
+package-lock.json
+server/package-lock.json
