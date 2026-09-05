@@ -12,6 +12,7 @@ const logger = require("./src/logger")
 const wordBank = require("./src/wordBank")
 const validation = require("./src/validation")
 const rooms = require("./src/rooms")
+const guessMatch = require("./src/guessMatch")
 const db = require("./src/db")
 const { TokenBucket } = require("./src/rateLimiter")
 
@@ -458,6 +459,15 @@ function createServer(overrides = {}) {
       }
       broadcastExcept(room, ws, payload)
       sendTo(ws, payload)
+      const guess = msg.message.trim().toLowerCase()
+      if (guessMatch.isCloseGuess(guess, room.ans)) {
+        sendTo(ws, {
+          type: 3,
+          id: msg.id,
+          message: "C So close! 🔥",
+          isTrue: false,
+        })
+      }
     }
   }
 
