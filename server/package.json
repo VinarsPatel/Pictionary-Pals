@@ -3,9 +3,13 @@
   "version": "1.0.0",
   "description": "Pictionary Pals real-time game server (Express + ws)",
   "main": "index.js",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "test": "node --test",
     "dev": "nodemon index.js",
+    "start": "node index.js",
     "lint": "eslint ."
   },
   "keywords": [],
