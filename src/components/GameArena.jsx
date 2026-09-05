@@ -27,7 +27,13 @@ import Card from "./ui/Card"
 import Input from "./ui/Input"
 
 import ChatBox from "./ChatBox"
-import { isMuted, playCorrectGuess, playTurnStart, toggleMuted } from "../utils/sounds"
+import {
+  isMuted,
+  playCloseGuess,
+  playCorrectGuess,
+  playTurnStart,
+  toggleMuted,
+} from "../utils/sounds"
 
 const CELEBRATION_DURATION_MS = 1700
 
@@ -460,6 +466,12 @@ const GameArena = () => {
             type: "addMsg",
             msg: msg.message,
           })
+          // The server only ever sends this "C " close-guess message to the
+          // guesser themselves (never broadcast), so this sound is already
+          // scoped to that one player without any extra check here.
+          if (msg.message.startsWith("C ")) {
+            playCloseGuess()
+          }
         }
         break
       case 4:

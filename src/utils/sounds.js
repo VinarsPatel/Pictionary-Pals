@@ -43,33 +43,65 @@ export function toggleMuted() {
   return next
 }
 
-// One oscillator tone with a quick exponential fade-out so it doesn't click.
-function beep({ freq, duration = 0.12, type = "sine", gain = 0.15, delay = 0 }) {
+// One oscillator tone with a short linear attack (avoids the instant-gain
+// "pop" a synthesized tone gets if it jumps straight to full volume) and a
+// gentle exponential fade-out so it doesn't click. A low-pass filter rounds
+// off the harsher upper harmonics of square/triangle waves so tones read as
+// soft/rounded rather than buzzy.
+function beep({
+  freq,
+  duration = 0.12,
+  type = "sine",
+  gain = 0.15,
+  delay = 0,
+  attack = 0.015,
+  filterFreq = 2200,
+}) {
   if (isMuted()) return
   const ctx = getAudioContext()
   if (!ctx) return
   const startAt = ctx.currentTime + delay
+  const endAt = startAt + duration
   const oscillator = ctx.createOscillator()
   const gainNode = ctx.createGain()
+  const filter = ctx.createBiquadFilter()
   oscillator.type = type
   oscillator.frequency.setValueAtTime(freq, startAt)
-  gainNode.gain.setValueAtTime(gain, startAt)
-  gainNode.gain.exponentialRampToValueAtTime(0.0001, startAt + duration)
-  oscillator.connect(gainNode)
+  filter.type = "lowpass"
+  filter.frequency.setValueAtTime(filterFreq, startAt)
+  gainNode.gain.setValueAtTime(0.0001, startAt)
+  gainNode.gain.exponentialRampToValueAtTime(gain, startAt + attack)
+  gainNode.gain.exponentialRampToValueAtTime(0.0001, endAt)
+  oscillator.connect(filter)
+  filter.connect(gainNode)
   gainNode.connect(ctx.destination)
   oscillator.start(startAt)
-  oscillator.stop(startAt + duration)
+  oscillator.stop(endAt + 0.02)
 }
 
 export function playCorrectGuess() {
-  beep({ freq: 660, duration: 0.1, gain: 0.16 })
-  beep({ freq: 880, duration: 0.15, gain: 0.16, delay: 0.1 })
+  beep({ freq: 660, duration: 0.12, type: "triangle", gain: 0.14 })
+  beep({ freq: 880, duration: 0.18, type: "triangle", gain: 0.14, delay: 0.11 })
 }
 
 export function playTurnStart() {
-  beep({ freq: 440, duration: 0.2, type: "triangle", gain: 0.12 })
+  beep({ freq: 440, duration: 0.22, type: "triangle", gain: 0.11, filterFreq: 1800 })
 }
 
 export function playTick() {
-  beep({ freq: 320, duration: 0.08, type: "square", gain: 0.08 })
+  beep({ freq: 480, duration: 0.06, type: "sine", gain: 0.07, attack: 0.005 })
+}
+
+// Distinct from playCorrectGuess (which rises in pitch) — two identical soft
+// notes, so it reads as "close, try again" rather than "you got it".
+export function playCloseGuess() {
+  beep({ freq: 520, duration: 0.08, type: "triangle", gain: 0.1, filterFreq: 1600 })
+  beep({
+    freq: 520,
+    duration: 0.08,
+    type: "triangle",
+    gain: 0.1,
+    delay: 0.1,
+    filterFreq: 1600,
+  })
 }
