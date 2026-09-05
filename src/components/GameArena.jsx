@@ -884,7 +884,7 @@ const GameArena = () => {
         <Card className="flex flex-col gap-3 p-3">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-lg font-semibold text-slate-800">Canvas</h1>
+              <h2 className="text-lg font-semibold text-slate-800">Canvas</h2>
               <Badge>
                 Round {state.round}/{state.maxRounds}
               </Badge>
