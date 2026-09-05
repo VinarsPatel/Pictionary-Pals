@@ -60,7 +60,6 @@ Copy `.env.example` → `.env` at the root, and `server/.env.example` → `serve
 | ------------- | ---------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------- |
 | `.env`        | `REACT_APP_SERVER_URL` | client  | Base URL for the REST API, e.g. `http://localhost:4000`                                                                         |
 | `.env`        | `REACT_APP_WS_URL`     | client  | WebSocket URL the game connects to, e.g. `ws://localhost:4000`                                                                  |
-| `.env`        | `REACT_APP_BASE_URL`   | client  | Base URL used to build the shareable room link shown on the home page                                                           |
 | `server/.env` | `PORT`                 | server  | Port the Express/WebSocket server listens on (default `4000`)                                                                   |
 | `server/.env` | `CLIENT_ORIGINS`       | server  | Comma-separated CORS allowlist. **Unset = wide-open `origin: "*"`** with a startup warning — always set this outside local dev. |
 | `server/.env` | `DB_PATH`              | server  | SQLite file path, relative to `server/` (default `./data/pictionary.db`, gitignored)                                            |
