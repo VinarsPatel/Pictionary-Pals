@@ -1,18 +1,20 @@
 import React, { useEffect, useRef } from "react"
 
+// Pastel backgrounds with a matching dark-saturated text color per tag —
+// alternating shades (by message index) so consecutive same-tag messages
+// stay visually distinct from one another.
 const colorObj = {
-  G: ["#00f000", "#008000"],
-  O: ["#ffa500", "#ff5f1f"],
-  R: ["#ff0000", "#800000"],
-  S: ["#00c8ff", "#0082ff"],
-  B: ["#b0b0b0", "#a0a0a0"],
+  G: ["bg-emerald-100 text-emerald-800", "bg-emerald-200 text-emerald-800"],
+  O: ["bg-orange-100 text-orange-800", "bg-orange-200 text-orange-800"],
+  R: ["bg-red-100 text-red-800", "bg-red-200 text-red-800"],
+  S: ["bg-blue-100 text-blue-800", "bg-blue-200 text-blue-800"],
+  B: ["bg-slate-100 text-slate-700", "bg-slate-200 text-slate-700"],
 }
 
 const ChatBox = ({ msgArr }) => {
   const chatBox = useRef(null)
 
   useEffect(() => {
-   //  console.log(msgArr)
     const chatBoxCurrent = chatBox.current
 
     // Check if the user is near the bottom
@@ -27,13 +29,18 @@ const ChatBox = ({ msgArr }) => {
   }, [msgArr])
 
   return (
-    <div className="h-fit overflow-y-scroll" ref={chatBox}>
+    <div
+      className="flex flex-1 flex-col gap-1 overflow-y-auto overscroll-contain pr-1"
+      ref={chatBox}
+    >
+      {msgArr.length === 0 && (
+        <p className="text-sm text-slate-500">No messages yet — say hi!</p>
+      )}
       {msgArr.map((msg, ind) => {
-        {/* console.log(msg, ind) */}
+        const isCorrectGuess = msg[0] === "G"
         return (
           <p
-            style={{ backgroundColor: colorObj[msg[0]][ind & 1] }}
-            className="rounded-md px-2 py-[2px] text-lg"
+            className={`rounded-md px-2 py-1 text-sm ${colorObj[msg[0]][ind & 1]} ${isCorrectGuess ? "animate-bubble-in font-semibold" : ""}`}
             key={ind}
           >
             {msg.substring(2)}
