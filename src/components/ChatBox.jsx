@@ -9,6 +9,7 @@ const colorObj = {
   R: ["bg-red-100 text-red-800", "bg-red-200 text-red-800"],
   S: ["bg-blue-100 text-blue-800", "bg-blue-200 text-blue-800"],
   B: ["bg-slate-100 text-slate-700", "bg-slate-200 text-slate-700"],
+  C: ["bg-amber-100 text-amber-800", "bg-amber-200 text-amber-800"],
 }
 
 const ChatBox = ({ msgArr }) => {

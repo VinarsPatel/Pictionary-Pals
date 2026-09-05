@@ -11,6 +11,8 @@ import {
   LuPencil,
   LuPlay,
   LuTrash2,
+  LuVolume2,
+  LuVolumeX,
 } from "react-icons/lu"
 import { useParams } from "react-router-dom"
 import toast from "react-hot-toast"
@@ -25,6 +27,7 @@ import Card from "./ui/Card"
 import Input from "./ui/Input"
 
 import ChatBox from "./ChatBox"
+import { isMuted, playCorrectGuess, playTurnStart, toggleMuted } from "../utils/sounds"
 
 const CELEBRATION_DURATION_MS = 1700
 
@@ -270,6 +273,7 @@ const GameArena = () => {
   // bumped on every correct guess so a guess landing mid-animation restarts
   // it (a plain boolean wouldn't retrigger the CSS animation on a repeat).
   const [celebration, setCelebration] = useState(null)
+  const [soundMuted, setSoundMuted] = useState(() => isMuted())
 
   useEffect(() => {
     if (!celebration) return undefined
@@ -450,6 +454,7 @@ const GameArena = () => {
             key: Date.now(),
             name: state.names?.[msg.id] || "Someone",
           })
+          playCorrectGuess()
         } else {
           dispatch({
             type: "addMsg",
@@ -473,6 +478,7 @@ const GameArena = () => {
         if (msg.word) {
           toast(`Your turn — draw "${msg.word}"!`, { icon: "🎨" })
         }
+        playTurnStart()
         setTime(msg.time)
         clearCanvas()
         break
@@ -883,14 +889,28 @@ const GameArena = () => {
                 </Badge>
               )}
             </div>
-            {time && (
-              <TurnCountdown
-                key={String(time)}
-                endAtMs={new Date(time).getTime() + turnDurationMs}
-                durationMs={turnDurationMs}
-                getServerNow={getServerNow}
-              />
-            )}
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                aria-label={soundMuted ? "Unmute sound" : "Mute sound"}
+                onClick={() => setSoundMuted(toggleMuted())}
+                className="flex h-8 w-8 items-center justify-center rounded-md text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
+              >
+                {soundMuted ? (
+                  <LuVolumeX className="h-4 w-4" />
+                ) : (
+                  <LuVolume2 className="h-4 w-4" />
+                )}
+              </button>
+              {time && (
+                <TurnCountdown
+                  key={String(time)}
+                  endAtMs={new Date(time).getTime() + turnDurationMs}
+                  durationMs={turnDurationMs}
+                  getServerNow={getServerNow}
+                />
+              )}
+            </div>
           </div>
           <div className="relative">
             <canvas

@@ -21,6 +21,7 @@ const GameOverOverlay = ({ gameOver, selfId, isHost, canStart, onStartNext }) =>
 
   return (
     <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-4 rounded-md border border-violet-100 bg-white/95 p-6 text-center shadow-xl">
+      <img src="/logo.png" alt="" className="w-full max-w-[220px]" />
       <h2 className="text-2xl font-bold text-indigo-600">Game Over!</h2>
       <p className="text-sm text-slate-500">
         Round {gameOver.round}/{gameOver.maxRounds} complete

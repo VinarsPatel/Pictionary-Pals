@@ -88,6 +88,11 @@ const HomePage = () => {
 
   return (
     <div className="mx-auto flex min-h-[650px] w-full max-w-2xl flex-col items-center justify-center gap-6 px-4 py-8">
+      <img
+        src="/logo.png"
+        alt="Pictionary Pals"
+        className="w-full max-w-md"
+      />
       <Button
         onClick={quickPlay}
         disabled={quickPlayLoading}

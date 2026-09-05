@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from "react"
+import React, { useEffect, useRef, useState } from "react"
+import { playTick } from "../utils/sounds"
 
 const SIZE = 44
 const STROKE = 5
@@ -18,9 +19,24 @@ const TurnCountdown = ({ endAtMs, durationMs, getServerNow }) => {
   const [remainingMs, setRemainingMs] = useState(() =>
     Math.max(0, endAtMs - getServerNow())
   )
+  // Tracks the last integer second we fired a tick for, so a 250ms poll
+  // interval doesn't replay the same tick multiple times per second.
+  const lastTickSecondRef = useRef(null)
 
   useEffect(() => {
-    const update = () => setRemainingMs(Math.max(0, endAtMs - getServerNow()))
+    const update = () => {
+      const next = Math.max(0, endAtMs - getServerNow())
+      setRemainingMs(next)
+      const nextSeconds = Math.ceil(next / 1000)
+      if (
+        nextSeconds > 0 &&
+        nextSeconds <= 10 &&
+        nextSeconds !== lastTickSecondRef.current
+      ) {
+        lastTickSecondRef.current = nextSeconds
+        playTick()
+      }
+    }
     update()
     const intervalId = setInterval(update, 250)
     document.addEventListener("visibilitychange", update)
