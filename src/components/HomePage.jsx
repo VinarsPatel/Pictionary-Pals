@@ -76,7 +76,7 @@ const HomePage = () => {
   }
 
   const roomLink = roomId
-    ? `${process.env.REACT_APP_BASE_URL}room/${roomId}`
+    ? `${window.location.origin}/room/${roomId}`
     : null
 
   const copyToClipboard = () => {
