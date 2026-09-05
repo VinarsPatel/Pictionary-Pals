@@ -88,6 +88,17 @@ const HomePage = () => {
 
   return (
     <div className="mx-auto flex min-h-[650px] w-full max-w-2xl flex-col items-center justify-center gap-6 px-4 py-8">
+      {/* Visually-hidden but crawlable/screen-reader-visible — the logo
+          image below carries the same name visually, but search engines
+          and assistive tech need real heading text, not just an alt attr. */}
+      <h1 className="sr-only">
+        Pictionary Pals — play a drawing and guessing game online with friends
+      </h1>
+      <img
+        src="/logo.png"
+        alt="Pictionary Pals"
+        className="w-full max-w-md"
+      />
       <Button
         onClick={quickPlay}
         disabled={quickPlayLoading}
